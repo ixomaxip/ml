@@ -25,6 +25,8 @@ RUN pip install pandas
 RUN pip install jupyterlab && jupyter serverextension enable --py jupyterlab
 # Dark Theme
 COPY jupyter_cfg/themes.jupyterlab-settings /root/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings
+
+RUN pip install xlrd
 # Expose Jupyter port & cmd
 # RUN mkdir -p /opt/app/data
 CMD jupyter lab --ip=0.0.0.0 --port=80 --no-browser --notebook-dir=/workdir --allow-root --LabApp.token=''
