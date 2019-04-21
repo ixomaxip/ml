@@ -261,6 +261,33 @@ plt.legend(clusters['poroda'], loc='best', bbox_to_anchor=(1.5, -0.05), ncol=3)
 plt.gca().set_aspect('equal')
 
 
+# ## Robust
+
+# In[91]:
+
+
+from sklearn.preprocessing import RobustScaler
+scaler = RobustScaler()
+X_scaledR = scaler.fit_transform(data)
+
+
+# In[92]:
+
+
+from sklearn.decomposition import PCA
+pca = PCA(n_components=2)
+X_pcaR = pca.fit_transform(X_scaledR)
+
+
+# In[95]:
+
+
+plt.figure(figsize=(15,15))
+discrete_scatter(X_pcaR[:,0], X_pcaR[:,1],clusters['poroda']);
+plt.legend(clusters['poroda'], loc='best', bbox_to_anchor=(1.5, -0.05), ncol=3)
+plt.gca().set_aspect('equal')
+
+
 # In[ ]:
 
 
