@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[18]:
 
 
 from gensim.models.keyedvectors import KeyedVectors
@@ -18,10 +18,10 @@ from nltk.stem.porter import PorterStemmer
 import pandas as pd
 
 path_model = r"./word2vec_twitter_model.bin"
-path_data=r"./data"
+path_data=r"/media/ors/ANNA/data_2"
 
 
-# In[3]:
+# In[19]:
 
 
 def clean_text(text):
@@ -70,7 +70,7 @@ for f in os.listdir(path_data):
 print("Всего слов: {}".format(len(words)))
 
 
-# In[3]:
+# In[20]:
 
 
 embdict=dict()#словарь эмбеддингов и слов
@@ -99,13 +99,13 @@ with open(path_model,'rb')as f:
         else:
             f.read(binary_len)
         index+=1
-        if index%1000000==0:
+        if index%500000==0:
             print("iteration "+str(index))
 print(embdict)
 print("Слов в словаре:"+str(len(embdict)))
 
 
-# In[4]:
+# In[21]:
 
 
 for f in os.listdir(path_data):
@@ -136,7 +136,7 @@ print("Всего слов: "+str(len(words)))
 
 # <h1>дальше код про сеть
 
-# In[5]:
+# In[22]:
 
 
 import numpy as np
@@ -160,43 +160,45 @@ from tensorflow.keras.preprocessing import sequence
 import copy
 
 
-# In[6]:
+# In[23]:
 
 
-name_train1=r"none-class-1200.txt.csv"
-name_train2=r"i_train.txt.csv"
-name_test=r"i_test.txt.csv"
-name_val=r"p_val.txt.csv"
+name_train_none=r"none_train.csv"
+name_train=r"i_train.csv"
+
+name_test_none=r"none_test.csv"
+name_test_irony=r"i_test.csv"
+name_test_puns=r"p_test.csv"
+name_test_met=r"m_test.csv"
 
 
-# In[7]:
+# In[24]:
 
 
-with open(name_train1, encoding='utf-8') as f:
-        df1 = pd.read_csv(f, sep=';', header=0, decimal = '.', index_col=0)
-with open(name_train2, encoding='utf-8') as f:
-        df2 = pd.read_csv(f, sep=';', header=0, decimal = '.', index_col=0)       
+def create_data(path, data_none, flag=False):
+    with open(path, encoding='utf-8') as f:
+        data = pd.read_csv(f, sep=';', header=0, decimal = '.', index_col=0)    
+    data1 = data.values
+    data2 = data_none.values
+    data1 = np.column_stack((np.ones(len(data1)),data1))
+    data2 = np.column_stack((np.zeros(len(data2)),data2))
+    data_res=np.vstack((data1,data2)) 
+    if flag:
+        np.random.shuffle(data_res)
+    return data_res
 
-train_data1 = df1.values
-train_data2 = df2.values
+with open(name_train_none, encoding='utf-8') as f:
+        df_train_none = pd.read_csv(f, sep=';', header=0, decimal = '.', index_col=0)
+with open(name_test_none, encoding='utf-8') as f:
+        df_test_none = pd.read_csv(f, sep=';', header=0, decimal = '.', index_col=0)
 
-train_data1 = np.column_stack((np.zeros(len(train_data1)),train_data1))
-train_data2 = np.column_stack((np.ones(len(train_data2)),train_data2))
-
-train_data=np.vstack((train_data1,train_data2)) 
-np.random.shuffle(train_data)
-
-with open(name_test, encoding='utf-8') as f:
-        df1 = pd.read_csv(f, sep=';', header=0, decimal = '.', index_col=0)
-with open(name_val, encoding='utf-8') as f:
-        df2 = pd.read_csv(f, sep=';', header=0, decimal = '.', index_col=0)
-test_data = df1.values
-test_data = np.column_stack((np.ones(len(test_data)),test_data))
-val_data = df2.values
-val_data = np.column_stack((np.ones(len(val_data)),val_data))
+train = create_data(name_train, df_train_none, True)
+test_irony = create_data(name_test_irony, df_test_none)
+test_puns = create_data(name_test_puns, df_test_none)
+test_met = create_data(name_test_met, df_test_none)
 
 
-# In[8]:
+# In[25]:
 
 
 def remove_floats(texts, categories, vectors):
@@ -210,45 +212,44 @@ def remove_floats(texts, categories, vectors):
             _vectors.append(vectors[i])
     return _texts,_categories,_vectors
 
-df = pd.DataFrame(train_data)
-texts = df[1].tolist()
-categories = df[0].tolist()
-vectors = df.drop([0,1], axis=1).values
-texts,categories,vectors=remove_floats(texts,categories,vectors)
+def split_data(d):
+    df = pd.DataFrame(d)
+    t = df[1].tolist()
+    cat = df[0].tolist()
+    vec= df.drop([0,1], axis=1).values
+    t,cat,vec=remove_floats(t,cat,vec)
+    return t,cat,vec
 
-df = pd.DataFrame(test_data)
-texts_test = df[1].tolist()
-categories_test = df[0].tolist()
-vectors_test = df.drop([0,1], axis=1).values
-texts_test,categories_test,vectors_test=remove_floats(texts_test,categories_test,vectors_test)
-
-df = pd.DataFrame(val_data)
-texts_val = df[1].tolist()
-categories_val = df[0].tolist()
-vectors_val = df.drop([0,1], axis=1).values
-texts_val,categories_val,vectors_val=remove_floats(texts_val,categories_val,vectors_val)
+texts,categories,vectors=split_data(train)
+texts_test_irony ,categories_test_irony ,vectors_test_irony =split_data(test_irony)
+texts_test_puns ,categories_test_puns ,vectors_test_puns =split_data(test_puns)
+texts_test_met ,categories_test_met ,vectors_test_met =split_data(test_met)
 
 
-# In[12]:
+# In[26]:
 
 
 num_classes = 2
 
-descriptions = texts+texts_test
+descriptions = texts
     
 x_train = texts
 y_train = categories
     
-x_test = texts_test
-y_test = categories_test
+x_test_irony = texts_test_irony
+y_test_irony = categories_test_irony
 
-x_val = texts_val
-y_val = categories_val
+x_test_puns = texts_test_puns
+y_test_puns = categories_test_puns
+
+x_test_met = texts_test_met
+y_test_met = categories_test_met
 
 
 y_train = keras.utils.to_categorical(y_train, num_classes)
-y_test = keras.utils.to_categorical(y_test, num_classes)
-y_val = keras.utils.to_categorical(y_val, num_classes)
+y_test_irony = keras.utils.to_categorical(y_test_irony, num_classes)
+y_test_puns = keras.utils.to_categorical(y_test_puns, num_classes)
+y_test_met = keras.utils.to_categorical(y_test_met, num_classes)
 
 max_words = 0
 for desc in descriptions:
@@ -267,17 +268,19 @@ t = Tokenizer()
 t.fit_on_texts(descriptions)
 vocab_size = len(t.word_index) + 1
 encoded_docs_train = t.texts_to_sequences(x_train)
-encoded_docs_test = t.texts_to_sequences(x_test)
-encoded_docs_val = t.texts_to_sequences(x_val)
+encoded_docs_test_irony= t.texts_to_sequences(x_test_irony)
+encoded_docs_test_puns= t.texts_to_sequences(x_test_puns)
+encoded_docs_test_met= t.texts_to_sequences(x_test_met)
 padded_docs_train = sequence.pad_sequences(encoded_docs_train, maxlen=maxSequenceLength)
-padded_docs_test = sequence.pad_sequences(encoded_docs_test, maxlen=maxSequenceLength)
-padded_docs_val= sequence.pad_sequences(encoded_docs_val, maxlen=maxSequenceLength)
+padded_docs_test_irony = sequence.pad_sequences(encoded_docs_test_irony, maxlen=maxSequenceLength)
+padded_docs_test_puns = sequence.pad_sequences(encoded_docs_test_puns, maxlen=maxSequenceLength)
+padded_docs_test_met = sequence.pad_sequences(encoded_docs_test_met, maxlen=maxSequenceLength)
 
 total_unique_words = len(t.word_counts)
 print('Всего уникальных слов в словаре: {}'.format(total_unique_words))
 
 
-# In[10]:
+# In[27]:
 
 
 embedding_matrix = np.zeros((vocab_size, 400))
@@ -287,10 +290,11 @@ for word, i in t.word_index.items():
         if embedding_vector is not None:
             embedding_matrix[i] = embedding_vector
     except:
-        print(word)
+        pass
+        #print(word)
 
 
-# In[13]:
+# In[28]:
 
 
 from tensorflow.keras.models import Sequential
@@ -321,54 +325,51 @@ model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accurac
 print(model.summary())
 
 
-# In[18]:
+# In[43]:
 
 
-history = model.fit(padded_docs_train, y_train, epochs = 10, verbose=2, validation_data=(padded_docs_test, y_test))
-predict = np.argmax(model.predict(padded_docs_test), axis=1)
-answer = np.argmax(y_test, axis=1)
-print('Accuracy: %f' % (accuracy_score(predict, answer)*100))
-print('F1-score: %f' % (f1_score(predict, answer, average="macro")*100))
-print('Precision: %f' % (precision_score(predict, answer, average="macro")*100))
-print('Recall: %f' % (recall_score(predict, answer, average="macro")*100)) 
+history = model.fit(padded_docs_train, y_train, epochs = 20, verbose=2, validation_data=(padded_docs_test_irony, y_test_irony))
+
+def predict(padded_docs_test, y_test, name):
+    predict = np.argmax(model.predict(padded_docs_test), axis=1)
+    answer = np.argmax(y_test, axis=1)
+    f=open(name, 'w')
+    st= 'Precision: %f' % (precision_score(predict, answer, average="macro")*100)
+    print(st)
+    f.write(st+'\n')
+    st= 'Recall: %f' % (recall_score(predict, answer, average="macro")*100)
+    print(st)
+    f.write(st+'\n')
+    st= 'F1-score: %f' % (f1_score(predict, answer, average="macro")*100)
+    print(st)
+    f.write(st+'\n')
+    st= 'Accuracy: %f' % (accuracy_score(predict, answer)*100)
+    print(st)
+    f.write(st+'\n')
+
+    for p in predict:
+        f.write(str(p)+'\n')
+    f.close()
+    
+
+predict(padded_docs_test_irony, y_test_irony, 'irony_irony_90.txt')
+predict(padded_docs_test_puns, y_test_puns, 'irony_puns_90.txt')
+predict(padded_docs_test_met, y_test_met, 'irony_met_90.txt')
 
 
-# # 10 epochs:
-# - ## test:
-# Accuracy: 87.000000<br>
-# F1-score: 46.524064<br>
-# Precision: 43.500000<br>
-# Recall: 50.000000<br>
-# 
-# - ## val:
-# Accuracy: 35.000000<br>
-# F1-score: 25.925926<br>
-# Precision: 17.500000<br>
-# Recall: 50.000000<br>
-# 
-# # 20 epochs:
-# - ## test:
-# Accuracy: 90.000000<br>
-# F1-score: 47.368421<br>
-# Precision: 45.000000<br>
-# Recall: 50.000000<br>
-# 
-# - ## val:
-# Accuracy: 28.000000<br>
-# F1-score: 21.875000<br>
-# Precision: 14.000000<br>
-# Recall: 50.000000<br>
-
-# In[19]:
-
-
-predict = np.argmax(model.predict(padded_docs_val), axis=1)
-answer = np.argmax(y_val, axis=1)
-print('Accuracy: %f' % (accuracy_score(predict, answer)*100))
-print('F1-score: %f' % (f1_score(predict, answer, average="macro")*100))
-print('Precision: %f' % (precision_score(predict, answer, average="macro")*100))
-print('Recall: %f' % (recall_score(predict, answer, average="macro")*100))  
-
+# # 60 epochs:
+# Precision: 77.000000<br>
+# Recall: 78.957529<br>
+# F1-score: 76.604618<br>
+# Accuracy: 77.000000<br><br>
+# Precision: 50.250000<br>
+# Recall: 50.679394<br>
+# F1-score: 40.914051<br>
+# Accuracy: 50.250000<br><br>
+# Precision: 53.250000<br>
+# Recall: 57.068675<br>
+# F1-score: 45.950242<br>
+# Accuracy: 53.250000<br>
 
 # In[ ]:
 
