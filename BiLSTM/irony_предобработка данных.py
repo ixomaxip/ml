@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[44]:
 
 
 from gensim.models.keyedvectors import KeyedVectors
@@ -18,10 +18,10 @@ from nltk.stem.porter import PorterStemmer
 import pandas as pd
 
 path_model = r"./word2vec_twitter_model.bin"
-path_data=r"/media/ors/ANNA/data_2"
+path_data=r"./data_2"
 
 
-# In[19]:
+# In[45]:
 
 
 def clean_text(text):
@@ -70,7 +70,7 @@ for f in os.listdir(path_data):
 print("Всего слов: {}".format(len(words)))
 
 
-# In[20]:
+# In[46]:
 
 
 embdict=dict()#словарь эмбеддингов и слов
@@ -105,7 +105,7 @@ print(embdict)
 print("Слов в словаре:"+str(len(embdict)))
 
 
-# In[21]:
+# In[47]:
 
 
 for f in os.listdir(path_data):
@@ -136,7 +136,7 @@ print("Всего слов: "+str(len(words)))
 
 # <h1>дальше код про сеть
 
-# In[22]:
+# In[48]:
 
 
 import numpy as np
@@ -160,11 +160,11 @@ from tensorflow.keras.preprocessing import sequence
 import copy
 
 
-# In[23]:
+# In[60]:
 
 
 name_train_none=r"none_train.csv"
-name_train=r"i_train.csv"
+name_train=r"p_train.csv"
 
 name_test_none=r"none_test.csv"
 name_test_irony=r"i_test.csv"
@@ -172,7 +172,7 @@ name_test_puns=r"p_test.csv"
 name_test_met=r"m_test.csv"
 
 
-# In[24]:
+# In[61]:
 
 
 def create_data(path, data_none, flag=False):
@@ -198,7 +198,7 @@ test_puns = create_data(name_test_puns, df_test_none)
 test_met = create_data(name_test_met, df_test_none)
 
 
-# In[25]:
+# In[62]:
 
 
 def remove_floats(texts, categories, vectors):
@@ -226,7 +226,7 @@ texts_test_puns ,categories_test_puns ,vectors_test_puns =split_data(test_puns)
 texts_test_met ,categories_test_met ,vectors_test_met =split_data(test_met)
 
 
-# In[26]:
+# In[63]:
 
 
 num_classes = 2
@@ -280,7 +280,7 @@ total_unique_words = len(t.word_counts)
 print('Всего уникальных слов в словаре: {}'.format(total_unique_words))
 
 
-# In[27]:
+# In[64]:
 
 
 embedding_matrix = np.zeros((vocab_size, 400))
@@ -294,7 +294,7 @@ for word, i in t.word_index.items():
         #print(word)
 
 
-# In[28]:
+# In[65]:
 
 
 from tensorflow.keras.models import Sequential
@@ -325,10 +325,55 @@ model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accurac
 print(model.summary())
 
 
-# In[43]:
+# In[66]:
 
 
-history = model.fit(padded_docs_train, y_train, epochs = 20, verbose=2, validation_data=(padded_docs_test_irony, y_test_irony))
+def predict(padded_docs_test, y_test, name):
+    predict = np.argmax(model.predict(padded_docs_test), axis=1)
+    answer = np.argmax(y_test, axis=1)
+    f=open(name, 'w')
+    st= 'Precision: %f' % (precision_score(predict, answer, average="macro")*100)
+    print(st)
+    f.write(st+'\n')
+    st= 'Recall: %f' % (recall_score(predict, answer, average="macro")*100)
+    print(st)
+    f.write(st+'\n')
+    st= 'F1-score: %f' % (f1_score(predict, answer, average="macro")*100)
+    print(st)
+    f.write(st+'\n')
+    st= 'Accuracy: %f' % (accuracy_score(predict, answer)*100)
+    print(st)
+    f.write(st+'\n')
+
+    for p in predict:
+        f.write(str(p)+'\n')
+    f.close()
+
+ep=10
+for i in range(7):
+    history = model.fit(padded_docs_train, y_train, epochs = ep, verbose=2, validation_data=(padded_docs_test_puns, y_test_puns))
+    predict(padded_docs_test_irony, y_test_irony, 'puns_irony_'+str((i+1)*ep)+'.txt')
+    predict(padded_docs_test_puns, y_test_puns, 'puns_puns_'+str((i+1)*ep)+'.txt')
+    predict(padded_docs_test_met, y_test_met, 'puns_met_'+str((i+1)*ep)+'.txt')
+
+
+# # 60 epochs:
+# Precision: 77.000000<br>
+# Recall: 78.957529<br>
+# F1-score: 76.604618<br>
+# Accuracy: 77.000000<br><br>
+# Precision: 50.250000<br>
+# Recall: 50.679394<br>
+# F1-score: 40.914051<br>
+# Accuracy: 50.250000<br><br>
+# Precision: 53.250000<br>
+# Recall: 57.068675<br>
+# F1-score: 45.950242<br>
+# Accuracy: 53.250000<br>
+
+# In[54]:
+
+
 
 def predict(padded_docs_test, y_test, name):
     predict = np.argmax(model.predict(padded_docs_test), axis=1)
@@ -356,20 +401,6 @@ predict(padded_docs_test_irony, y_test_irony, 'irony_irony_90.txt')
 predict(padded_docs_test_puns, y_test_puns, 'irony_puns_90.txt')
 predict(padded_docs_test_met, y_test_met, 'irony_met_90.txt')
 
-
-# # 60 epochs:
-# Precision: 77.000000<br>
-# Recall: 78.957529<br>
-# F1-score: 76.604618<br>
-# Accuracy: 77.000000<br><br>
-# Precision: 50.250000<br>
-# Recall: 50.679394<br>
-# F1-score: 40.914051<br>
-# Accuracy: 50.250000<br><br>
-# Precision: 53.250000<br>
-# Recall: 57.068675<br>
-# F1-score: 45.950242<br>
-# Accuracy: 53.250000<br>
 
 # In[ ]:
 
