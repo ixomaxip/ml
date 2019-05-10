@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[44]:
+# In[1]:
+
+
+get_ipython().system('python --version')
+
+
+# In[5]:
 
 
 from gensim.models.keyedvectors import KeyedVectors
@@ -21,7 +27,21 @@ path_model = r"./word2vec_twitter_model.bin"
 path_data=r"./data_2"
 
 
-# In[45]:
+# In[7]:
+
+
+import tensorflow as tf
+h = tf.constant("GPU?")
+s = tf.Session()
+
+
+# In[8]:
+
+
+print(s.run(h))
+
+
+# In[6]:
 
 
 def clean_text(text):
@@ -70,7 +90,7 @@ for f in os.listdir(path_data):
 print("Всего слов: {}".format(len(words)))
 
 
-# In[46]:
+# In[9]:
 
 
 embdict=dict()#словарь эмбеддингов и слов
@@ -105,7 +125,7 @@ print(embdict)
 print("Слов в словаре:"+str(len(embdict)))
 
 
-# In[47]:
+# In[10]:
 
 
 for f in os.listdir(path_data):
@@ -136,7 +156,7 @@ print("Всего слов: "+str(len(words)))
 
 # <h1>дальше код про сеть
 
-# In[48]:
+# In[11]:
 
 
 import numpy as np
@@ -160,11 +180,11 @@ from tensorflow.keras.preprocessing import sequence
 import copy
 
 
-# In[60]:
+# In[12]:
 
 
 name_train_none=r"none_train.csv"
-name_train=r"p_train.csv"
+name_train=r"m_train.csv"
 
 name_test_none=r"none_test.csv"
 name_test_irony=r"i_test.csv"
@@ -172,7 +192,7 @@ name_test_puns=r"p_test.csv"
 name_test_met=r"m_test.csv"
 
 
-# In[61]:
+# In[13]:
 
 
 def create_data(path, data_none, flag=False):
@@ -198,7 +218,7 @@ test_puns = create_data(name_test_puns, df_test_none)
 test_met = create_data(name_test_met, df_test_none)
 
 
-# In[62]:
+# In[14]:
 
 
 def remove_floats(texts, categories, vectors):
@@ -226,7 +246,7 @@ texts_test_puns ,categories_test_puns ,vectors_test_puns =split_data(test_puns)
 texts_test_met ,categories_test_met ,vectors_test_met =split_data(test_met)
 
 
-# In[63]:
+# In[15]:
 
 
 num_classes = 2
@@ -280,7 +300,7 @@ total_unique_words = len(t.word_counts)
 print('Всего уникальных слов в словаре: {}'.format(total_unique_words))
 
 
-# In[64]:
+# In[16]:
 
 
 embedding_matrix = np.zeros((vocab_size, 400))
@@ -294,7 +314,7 @@ for word, i in t.word_index.items():
         #print(word)
 
 
-# In[65]:
+# In[17]:
 
 
 from tensorflow.keras.models import Sequential
@@ -325,7 +345,7 @@ model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accurac
 print(model.summary())
 
 
-# In[66]:
+# In[18]:
 
 
 def predict(padded_docs_test, y_test, name):
@@ -351,10 +371,10 @@ def predict(padded_docs_test, y_test, name):
 
 ep=10
 for i in range(7):
-    history = model.fit(padded_docs_train, y_train, epochs = ep, verbose=2, validation_data=(padded_docs_test_puns, y_test_puns))
-    predict(padded_docs_test_irony, y_test_irony, 'puns_irony_'+str((i+1)*ep)+'.txt')
-    predict(padded_docs_test_puns, y_test_puns, 'puns_puns_'+str((i+1)*ep)+'.txt')
-    predict(padded_docs_test_met, y_test_met, 'puns_met_'+str((i+1)*ep)+'.txt')
+    history = model.fit(padded_docs_train, y_train, epochs = ep, verbose=2, validation_data=(padded_docs_test_met, y_test_met))
+    predict(padded_docs_test_irony, y_test_irony, 'met_irony_'+str((i+1)*ep)+'.txt')
+    predict(padded_docs_test_puns, y_test_puns, 'met_puns_'+str((i+1)*ep)+'.txt')
+    predict(padded_docs_test_met, y_test_met, 'met_met_'+str((i+1)*ep)+'.txt')
 
 
 # # 60 epochs:
