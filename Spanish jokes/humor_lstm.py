@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[39]:
+# In[1]:
 
 
 import tensorflow as tf
@@ -21,10 +21,11 @@ from tensorflow.keras.models import Model
 from tensorflow.keras import utils
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing import sequence
+from sklearn.feature_extraction.text import TfidfVectorizer
 import copy
 
 
-# In[40]:
+# In[2]:
 
 
 import numpy as  np
@@ -36,16 +37,17 @@ from nltk.tokenize import word_tokenize
 import pandas as pd
 from nltk.stem import SnowballStemmer
 
-model = r"SBW-vectors-300-min5.txt"
+word2vec = r"SBW-vectors-300-min5.txt"
 train=r"haha_2019_train_preprocessed_lemmatized.csv"
 test=r"haha_2019_test_preprocessed_lemmatized.csv"
 val1=r"train.csv"
 val2=r"test.csv"
+val3=r"ev.csv"
 #train_sent1=r"C:\Users\Annie\Documents\Working\Spanish jokes\data\haha_2019_sent_politics_preprocessed_lemmatized.csv"
 #train_sent2=r"C:\Users\Annie\Documents\Working\Spanish jokes\data\haha_2019_sent_preprocessed_lemmatized.csv"
 
 
-# In[41]:
+# In[3]:
 
 
 #text preprocessing
@@ -62,11 +64,11 @@ def clean_text(text):
     words = [w for w in words if not w in stop_words]
     text=' '.join(words)
     tokens = word_tokenize(text)
-    stemmed = [stemmer.stem(i) for i in tokens]
-    return stemmed
+    #stemmed = [stemmer.stem(i) for i in tokens]
+    return tokens
 
 
-# In[42]:
+# In[4]:
 
 
 #read csv
@@ -94,14 +96,33 @@ scores_test=df[9].tolist()
 categories_test_raw = [1 if str(s)!='nan' else 0 for s in scores_test]
 
 
-# In[43]:
+# In[5]:
 
 
 df=pd.read_csv(test, sep=',', header=None, encoding = 'utf-8-sig')
 texts_ev=df[1].tolist()
 
 
-# In[44]:
+# In[6]:
+
+
+sw_list=stopwords.words('spanish')
+vectorizer = TfidfVectorizer(max_features=5000)
+
+for i in range(len(texts_train)):
+    texts_train[i]=' '.join(clean_text(texts_train[i]))
+for i in range(len(texts_test)):
+    texts_test[i]=' '.join(clean_text(texts_test[i]))
+for i in range(len(texts_ev)):
+    texts_ev[i]=' '.join(clean_text(texts_ev[i]))
+    
+
+tfidf_train = vectorizer.fit_transform(texts_train).toarray()
+tfidf_test = vectorizer.transform(texts_test).toarray()
+tfidf_ev = vectorizer.transform(texts_ev).toarray()
+
+
+# In[7]:
 
 
 values1= pd.read_csv(val1, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
@@ -109,40 +130,48 @@ from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler()
 values1=scaler.fit_transform(values1)
 #values1=scaler.transform(values1)
-#values1=np.hstack((tfidf_train,values1))
+values1=np.hstack((tfidf_train,values1))
 
 
-# In[45]:
+# In[8]:
 
 
 values2= pd.read_csv(val2, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
 values2=scaler.transform(values2)
-#values2=np.hstack((tfidf_test,values2))
+values2=np.hstack((tfidf_test,values2))
 
 
-# In[46]:
+# In[9]:
+
+
+values3= pd.read_csv(val3, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
+values3=scaler.transform(values3)
+values3=np.hstack((tfidf_ev,values3))
+
+
+# In[10]:
 
 
 words=set()#set of all words
 for text in texts_train:
-    words_text=clean_text(text)
+    words_text=text.split();
     words.update(words_text)
 for text in texts_test:
-    words_text=clean_text(text)
+    words_text=text.split();
     words.update(words_text)
 for text in texts_ev:
-    words_text=clean_text(text)
+    words_text=text.split();
     words.update(words_text)
 print("number of words: {0}".format(len(words)))
 
 
-# In[47]:
+# In[11]:
 
 
 embdict=dict()
 index=0
 
-with open(model,'r',encoding = 'utf-8-sig')as f:
+with open(word2vec,'r',encoding = 'utf-8-sig')as f:
     header = f.readline()
     vocab_size, layer1_size = map(int, header.split())
     binary_len = np.dtype('float32').itemsize * layer1_size
@@ -161,13 +190,13 @@ print("size of dictionary: {0}".format(len(embdict)))
 del(words)
 
 
-# In[48]:
+# In[12]:
 
 
 # The maximum number of words to be used. (most frequent)
 MAX_NB_WORDS = 50000
 # Max number of words in each complaint.
-MAX_SEQUENCE_LENGTH = 100
+MAX_SEQUENCE_LENGTH = 250
 # This is fixed.
 EMBEDDING_DIM = 300
 
@@ -178,10 +207,11 @@ word_index = tokenizer.word_index
 print('Found %s unique tokens.' % len(word_index))
 
 
-# In[49]:
+# In[13]:
 
 
-embedding_matrix = np.zeros((29531, 300))
+embedding_matrix = np.zeros((len(word_index), EMBEDDING_DIM))
+
 for word, i in tokenizer.word_index.items():
     try:
         embedding_vector = embdict[word]
@@ -194,7 +224,7 @@ for word, i in tokenizer.word_index.items():
 del(embdict)
 
 
-# In[50]:
+# In[14]:
 
 
 texts_train = tokenizer.texts_to_sequences(texts_train)
@@ -208,7 +238,7 @@ texts_ev = sequence.pad_sequences(texts_ev, maxlen=MAX_SEQUENCE_LENGTH)
 print('Shape of data tensor:', texts_ev.shape)
 
 
-# In[70]:
+# In[15]:
 
 
 print(len(texts_train[0]))
@@ -218,7 +248,7 @@ print(vocab_size)
 print(embedding_matrix.shape)
 
 
-# In[52]:
+# In[16]:
 
 
 num_classes=2
@@ -226,7 +256,7 @@ categories_train = tf.keras.utils.to_categorical(categories_train_raw, num_class
 categories_test = tf.keras.utils.to_categorical(categories_test_raw, num_classes)
 
 
-# In[69]:
+# In[17]:
 
 
 print(texts_train.shape)
@@ -235,7 +265,7 @@ print(categories_train.shape)
 print(categories_test.shape)
 
 
-# In[77]:
+# In[18]:
 
 
 import tensorflow.keras.backend as K
@@ -270,62 +300,184 @@ def f1(y_true, y_pred):
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
 
-# In[81]:
+# In[19]:
 
 
-inputA=Input(shape=(100,))
-inputB=Input(shape=(len(values1[0]),))
+def create_model(Dy : list = [0.1, 0.1, 0.1], Dz : list = [0.1, 0.1]):
+    inputA=Input(shape=(MAX_SEQUENCE_LENGTH,))
+    inputB=Input(shape=(len(values1[0]),))
 
-x = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], weights=[embedding_matrix], input_length=100, trainable=False)(inputA)
-x = Bidirectional(LSTM(64, dropout=0.4, recurrent_dropout=0.2, return_sequences=True))(x)
-x = Bidirectional(LSTM(64, dropout=0.4, recurrent_dropout=0.2))(x)
-x = Model(inputs=inputA, outputs=x)
+    x = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], weights=[embedding_matrix], input_length=MAX_SEQUENCE_LENGTH, trainable=False)(inputA)
+    # x = Bidirectional(LSTM(64, dropout=0.1, recurrent_dropout=0.2, return_sequences=True))(x)
+    # x = Bidirectional(LSTM(64, dropout=0.6, recurrent_dropout=0.2))(x)
 
-combined=concatenate([x.output, inputB])
-z=Dense(64, activation='relu')(combined)
-z=Dense(64, activation='relu')(z)
-z=Dense(2, activation='softmax')(z)
+    x = Bidirectional(LSTM(64, return_sequences=True))(x)
+    x = Bidirectional(LSTM(64))(x)
 
-model = tensorflow.keras.models.Model(inputs=[inputA, inputB], outputs=z)
+    x = Model(inputs=inputA, outputs=x)
 
-model.compile(loss='binary_crossentropy',
-              optimizer='adam',
-              metrics=['accuracy', f1],
-              )
+    y = Dense(1024, activation='relu')(inputB)
+    y = Dropout(Dy[0])(y)
+    y = Dense(256, activation='relu')(y)
+    y = Dropout(Dy[1])(y)
+    y = Dense(64, activation='relu')(y)
+    y = Dropout(Dy[2])(y)
+    y = Model(inputs=inputB, outputs=y)
 
-model.summary()
+    combined=concatenate([x.output, y.output])
+    z=Dense(64, activation='relu')(combined)
+    z = Dropout(Dz[0])(z)
+    z=Dense(64, activation='relu')(z)
+    z = Dropout(Dz[1])(z)
+    z=Dense(2, activation='softmax')(z)
+
+    model = tensorflow.keras.models.Model(inputs=[inputA, inputB], outputs=z)
+
+    model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy', f1],
+                  )
+
+    model.summary()
+    return model
 
 
-# In[83]:
+# In[20]:
+
+
+def create_model2(Dy = 0.0, Dz = 0.0):
+    inputA=Input(shape=(MAX_SEQUENCE_LENGTH,))
+    inputB=Input(shape=(len(values1[0]),))
+
+    x = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], weights=[embedding_matrix], input_length=MAX_SEQUENCE_LENGTH, trainable=False)(inputA)
+    # x = Bidirectional(LSTM(64, dropout=0.1, recurrent_dropout=0.2, return_sequences=True))(x)
+    # x = Bidirectional(LSTM(64, dropout=0.6, recurrent_dropout=0.2))(x)
+
+    x = Bidirectional(LSTM(64, return_sequences=True))(x)
+    x = Bidirectional(LSTM(64))(x)
+
+    x = Model(inputs=inputA, outputs=x)
+
+    y = Dense(1024, activation='relu')(inputB)
+#     y = Dropout(Dy[0])(y)
+    y = Dense(256, activation='relu')(y)
+#     y = Dropout(Dy[1])(y)
+    y = Dense(64, activation='relu')(y)
+    y = Dropout(Dy)(y)
+    y = Model(inputs=inputB, outputs=y)
+
+    combined=concatenate([x.output, y.output])
+    z=Dense(64, activation='relu')(combined)
+#     z = Dropout(Dz[0])(z)
+    z=Dense(64, activation='relu')(z)
+    z = Dropout(Dz)(z)
+    z=Dense(2, activation='softmax')(z)
+
+    model = tensorflow.keras.models.Model(inputs=[inputA, inputB], outputs=z)
+
+    model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy', f1],
+                  )
+
+    model.summary()
+    return model
+
+
+# In[43]:
+
+
+np.arange(0.1, 0.9, 0.1)
+
+
+# In[21]:
+
+
+from sklearn.model_selection import GridSearchCV
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+
+model = KerasClassifier(build_fn=create_model2)
+
+dropout = np.arange(0.1, 0.9, 0.4).tolist()
+param_grid = dict(Dy=dropout, Dz=dropout)
+print(param_grid)
+grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=4)
+
+
+# In[23]:
+
+
+grid_result = grid.fit(texts_train, np.array(values1), 
+          categories_train, epochs=1, 
+          verbose=0, 
+          validation_data=([texts_test, np.array(values2)], categories_test)
+         )
+# summarize results
+print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+means = grid_result.cv_results_['mean_test_score']
+stds = grid_result.cv_results_['std_test_score']
+params = grid_result.cv_results_['params']
+for mean, stdev, param in zip(means, stds, params):
+    print("%f (%f) with: %r" % (mean, stdev, param))
+
+
+# In[26]:
+
+
+model = create_model([0.2, 0.5, 0.8], [0.2, 0.8])
+
+
+# In[ ]:
 
 
 model.fit([texts_train, np.array(values1)], 
-          categories_train, epochs=50, 
+          categories_train, epochs=1, 
           verbose=1, 
           validation_data=([texts_test, np.array(values2)], categories_test)
          )
 #           callbacks=callbacks)
+
+
+# In[35]:
+
+
 predict = np.argmax(model.predict([np.array(texts_test),np.array(values2)]), axis=1)
 answer = np.argmax(categories_test, axis=1)
 print('F1-score: %f' % (f1_score(predict, answer, average="macro")*100))
 
 
-# In[59]:
+# In[96]:
 
 
+model
 
+
+# In[178]:
+
+
+predict = np.argmax(model.predict([np.array(texts_ev),np.array(values3)]), axis=1)
+print(predict)
+with open('prediction3.txt', 'w', encoding='utf-8') as file:
+    for p in predict:
+        print(str(p),file=file)
+
+
+# In[91]:
+
+
+from tensorflow.keras.models import load_model
+model.save('lstm.h5')
+
+
+# In[101]:
+
+
+from tensorflow.keras.models import load_model
+model = load_model('lstm.h5')
 
 
 # In[ ]:
 
 
-from keras.models import load_model
-model.save('tfidf_multitask_add_82_79.h5')
 
-
-# In[ ]:
-
-
-from keras.models import load_model
-model = load_model('best.h5')
 
