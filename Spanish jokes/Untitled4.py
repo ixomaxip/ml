@@ -116,7 +116,7 @@ print("size of dictionary: {0}".format(len(embdict)))
 
 # <h1>сеть
 
-# In[10]:
+# In[6]:
 
 
 import tensorflow.keras as keras
@@ -137,7 +137,7 @@ from tensorflow.keras.preprocessing import sequence
 import copy
 
 
-# In[17]:
+# In[7]:
 
 
 num_classes = 2
@@ -146,18 +146,58 @@ prep_texts_train =[]
 prep_texts_test =[]
 
 print("предобработка текста")
-for t in texts_train:
+            
+for t in texts_test:            
     prep_texts_train.append(' '.join(clean_text(t)))
 for t in texts_test:
     prep_texts_test.append(' '.join(clean_text(t)))
     
-descriptions = prep_texts_train
+print(len(prep_texts_train))
+print(len(prep_texts_test))
+
+prep_texts_train1 =[]
+prep_texts_test1 =[]  
+cats_train=[]
+cats_test=[]
+i=0
+
+for t in texts_train:
+    boo=False
+    temp=t.split()
+    for t1 in temp:
+        if t1.lower() in embdict:
+            boo=True
+            break
+    if boo:
+        prep_texts_train1.append(t)
+        cats_train.append(categories_train[i])
+    i+=1
+
+print(len(prep_texts_train1))
+
+i=0
+
+for t in texts_test:
+    boo=False
+    temp=t.split()
+    for t1 in temp:
+        if t1.lower() in embdict:
+            boo=True
+            break
+    if boo:
+        prep_texts_test1.append(t)
+        cats_test.append(categories_test[i])
+    i+=1
     
-x_train = prep_texts_train
-y_train = categories_train
+print(len(prep_texts_test1))
+
+descriptions = prep_texts_train1
     
-x_test = prep_texts_test
-y_test = categories_test
+x_train = prep_texts_train1
+y_train = cats_train
+    
+x_test = prep_texts_test1
+y_test = cats_test
 
 
 y_train = keras.utils.to_categorical(y_train, num_classes)
@@ -189,7 +229,7 @@ total_unique_words = len(t.word_counts)
 print('Всего уникальных слов в словаре: {}'.format(total_unique_words))
 
 
-# In[18]:
+# In[8]:
 
 
 embedding_matrix = np.zeros((vocab_size, 300))
@@ -204,13 +244,17 @@ for word, i in t.word_index.items():
         #print(word)
 
 
-# In[21]:
+# In[9]:
 
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Embedding, LSTM, Flatten, GRU, SimpleRNN
 from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.layers import Bidirectional
+
+
+# In[33]:
+
 
 model = Sequential()
 model.add(Embedding(vocab_size, 300, weights=[embedding_matrix], input_length=maxSequenceLength, trainable=False))
@@ -223,8 +267,8 @@ model.add(Embedding(vocab_size, 300, weights=[embedding_matrix], input_length=ma
 #model.add(Embedding(300, maxSequenceLength))
 #model.add(Bidirectional(LSTM(200, dropout=0.4, recurrent_dropout=0.2, return_sequences=True)))
 #model.add(Bidirectional(LSTM(200, dropout=0.4, recurrent_dropout=0.2, return_sequences=True)))
-model.add(Bidirectional(LSTM(128, dropout=0.4, recurrent_dropout=0.2, return_sequences=True)))
-model.add(Bidirectional(LSTM(128, dropout=0.4, recurrent_dropout=0.2)))
+#model.add(Bidirectional(LSTM(128, dropout=0.4, recurrent_dropout=0.2, return_sequences=True)))
+model.add(Bidirectional(LSTM(64, dropout=0.4, recurrent_dropout=0.2)))
 model.add(Dense(num_classes, activation='softmax'))
 # compile the model
 #rmsprop = RMSprop(lr=0.001, rho=0.9, epsilon=1e-6)
@@ -235,10 +279,28 @@ model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy']
 print(model.summary())
 
 
-# In[23]:
+# In[20]:
 
 
-history = model.fit(padded_docs_train, y_train, epochs = 20, verbose=2, validation_data=(padded_docs_test, y_test))
+history = model.fit(padded_docs_train, y_train, epochs = 5, verbose=2, validation_data=(padded_docs_test, y_test))
+
+
+# In[21]:
+
+
+model_name = '5ep_1l_69n_full_vocab5-5'
+
+
+# In[22]:
+
+
+model.save(model_name)
+
+
+# In[12]:
+
+
+model = keras.models.load_model(model_name)
 
 
 # In[ ]:

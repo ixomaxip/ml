@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[3]:
 
 
 import pandas as pd
@@ -12,7 +12,7 @@ import seaborn
 get_ipython().run_line_magic('matplotlib', 'inline')
 
 
-# In[3]:
+# In[5]:
 
 
 zonds = pd.read_excel('data/пример данных.xlsx', sheet_name='зонды')
@@ -20,16 +20,36 @@ clusters = pd.read_excel('data/пример данных.xlsx', sheet_name='кл
 zonds.shape
 
 
-# In[4]:
+# In[15]:
 
 
-zonds.describe()
+zonds.dtypes
 
 
-# In[ ]:
+# In[30]:
 
 
+zond = pd.read_excel('data/data.xlsx', sheet_name='ZOND')
+zond.dtypes
 
+
+# In[34]:
+
+
+zond['Q'] = zond['Q'].apply(pd.to_numeric, errors='coerce')
+zond['F'] = zond['F'].apply(pd.to_numeric, errors='coerce')
+
+
+# In[35]:
+
+
+zond.describe()
+
+
+# In[36]:
+
+
+zond.dtypes
 
 
 # In[5]:
