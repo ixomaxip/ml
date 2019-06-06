@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[133]:
 
 
 import tensorflow as tf
@@ -13,7 +13,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Embedding, LSTM
 from tensorflow.keras import callbacks
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow.keras.layers import Dense, Embedding, LSTM, Flatten, GRU, SimpleRNN
+from tensorflow.keras.layers import Dense, Embedding, LSTM, Flatten, GRU, SimpleRNN, Conv1D,MaxPooling1D
 from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.layers import Bidirectional
 from tensorflow.keras.layers import Input, concatenate
@@ -25,7 +25,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import copy
 
 
-# In[2]:
+# In[156]:
 
 
 import numpy as  np
@@ -43,11 +43,14 @@ test=r"haha_2019_test_preprocessed_lemmatized.csv"
 val1=r"train.csv"
 val2=r"test.csv"
 val3=r"ev.csv"
+val_ov=r"values1_oversampled.csv"
+texts_ov=r"texts_train_oversampled.csv"
+categories_ov=r"categories_train_oversampled.csv"
 #train_sent1=r"C:\Users\Annie\Documents\Working\Spanish jokes\data\haha_2019_sent_politics_preprocessed_lemmatized.csv"
 #train_sent2=r"C:\Users\Annie\Documents\Working\Spanish jokes\data\haha_2019_sent_preprocessed_lemmatized.csv"
 
 
-# In[3]:
+# In[157]:
 
 
 #text preprocessing
@@ -68,7 +71,7 @@ def clean_text(text):
     return tokens
 
 
-# In[4]:
+# In[158]:
 
 
 #read csv
@@ -95,15 +98,80 @@ texts_test_original=df[1].tolist()
 scores_test=df[9].tolist()
 categories_test_raw = [1 if str(s)!='nan' else 0 for s in scores_test]
 
+#texts_train= pd.read_csv(texts_ov, sep=';', header=None, encoding = 'utf-8-sig')[0].tolist()
+#categories_train_row= pd.read_csv(texts_ov, sep=';', header=None, encoding = 'utf-8-sig')[0].tolist()
 
-# In[5]:
+
+# In[159]:
 
 
 df=pd.read_csv(test, sep=',', header=None, encoding = 'utf-8-sig')
 texts_ev=df[1].tolist()
 
 
-# In[6]:
+# In[160]:
+
+
+values1= pd.read_csv(val1, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler()
+values1=scaler.fit_transform(values1)
+#values1=scaler.transform(values1)
+
+
+# In[161]:
+
+
+values2= pd.read_csv(val2, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
+values2=scaler.transform(values2)
+
+
+# In[162]:
+
+
+values3= pd.read_csv(val3, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
+values3=scaler.transform(values3)
+
+
+# In[111]:
+
+
+#oversampling
+count_maj=0
+for c in categories_train_raw:
+    if c==0:
+        count_maj+=1
+print('мажоритарный класс '+str(count_maj))
+
+categories_jokes=[]
+values_jokes=[]
+texts_jokes=[]
+
+for i in range(len(texts_train)):
+        if categories_train_raw[i]==1:
+            categories_jokes.append(categories_train_raw[i])
+            values_jokes.append(values1[i])
+            texts_jokes.append(texts_train[i])
+        
+
+print('миноритарный класс '+str(len(texts_jokes)))
+values_jokes=np.array(values_jokes)
+
+random.seed(42)
+initial_size=len(texts_jokes)
+new_size=len(texts_jokes)
+while new_size<count_maj:
+    r=random.randint(0,initial_size-1)
+    values1=np.vstack((values1, values_jokes[r]))
+    texts_train=np.append(texts_train, texts_jokes[r])
+    categories_train_raw=np.append(categories_train_raw, categories_jokes[r])
+    new_size+=1
+    a=count_maj-new_size
+    if a%500==0:
+        print(a)
+
+
+# In[163]:
 
 
 sw_list=stopwords.words('spanish')
@@ -122,34 +190,39 @@ tfidf_test = vectorizer.transform(texts_test).toarray()
 tfidf_ev = vectorizer.transform(texts_ev).toarray()
 
 
-# In[7]:
+# In[113]:
 
 
-values1= pd.read_csv(val1, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
-from sklearn.preprocessing import MinMaxScaler
-scaler = MinMaxScaler()
-values1=scaler.fit_transform(values1)
-#values1=scaler.transform(values1)
+import pickle
+
+with open('categories_train_raw.dat','wb') as file:
+    pickle.dump(categories_train_raw, file)
+with open('texts_train.dat','wb') as file:
+    pickle.dump(texts_train, file)
+with open('values1.dat','wb') as file:
+    pickle.dump(values1, file)
+
+
+# In[155]:
+
+
+with open('categories_train_raw.dat','rb') as file:
+    categories_train=pickle.load(file)
+with open('texts_train.dat','rb') as file:
+    texts_train=pickle.load(file)
+with open('values1.dat','rb') as file:
+    values1=pickle.load(file)
+
+
+# In[114]:
+
+
 values1=np.hstack((tfidf_train,values1))
-
-
-# In[8]:
-
-
-values2= pd.read_csv(val2, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
-values2=scaler.transform(values2)
 values2=np.hstack((tfidf_test,values2))
-
-
-# In[9]:
-
-
-values3= pd.read_csv(val3, sep=';', header=None, encoding = 'utf-8-sig').drop([0,1], axis=1).values
-values3=scaler.transform(values3)
 values3=np.hstack((tfidf_ev,values3))
 
 
-# In[10]:
+# In[164]:
 
 
 words=set()#set of all words
@@ -165,7 +238,7 @@ for text in texts_ev:
 print("number of words: {0}".format(len(words)))
 
 
-# In[11]:
+# In[165]:
 
 
 embdict=dict()
@@ -190,7 +263,7 @@ print("size of dictionary: {0}".format(len(embdict)))
 del(words)
 
 
-# In[12]:
+# In[171]:
 
 
 # The maximum number of words to be used. (most frequent)
@@ -201,13 +274,15 @@ MAX_SEQUENCE_LENGTH = 250
 EMBEDDING_DIM = 300
 
 tokenizer=Tokenizer()
+#tt=texts_train.tolist()
 tokenizer = Tokenizer(num_words=MAX_NB_WORDS, filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~', lower=True)
+#tokenizer.fit_on_texts(tt+texts_test+texts_ev)
 tokenizer.fit_on_texts(texts_train+texts_test+texts_ev)
 word_index = tokenizer.word_index
 print('Found %s unique tokens.' % len(word_index))
 
 
-# In[13]:
+# In[172]:
 
 
 embedding_matrix = np.zeros((len(word_index), EMBEDDING_DIM))
@@ -224,7 +299,7 @@ for word, i in tokenizer.word_index.items():
 del(embdict)
 
 
-# In[14]:
+# In[173]:
 
 
 texts_train = tokenizer.texts_to_sequences(texts_train)
@@ -238,7 +313,7 @@ texts_ev = sequence.pad_sequences(texts_ev, maxlen=MAX_SEQUENCE_LENGTH)
 print('Shape of data tensor:', texts_ev.shape)
 
 
-# In[15]:
+# In[174]:
 
 
 print(len(texts_train[0]))
@@ -248,7 +323,7 @@ print(vocab_size)
 print(embedding_matrix.shape)
 
 
-# In[16]:
+# In[175]:
 
 
 num_classes=2
@@ -256,7 +331,7 @@ categories_train = tf.keras.utils.to_categorical(categories_train_raw, num_class
 categories_test = tf.keras.utils.to_categorical(categories_test_raw, num_classes)
 
 
-# In[17]:
+# In[176]:
 
 
 print(texts_train.shape)
@@ -265,7 +340,7 @@ print(categories_train.shape)
 print(categories_test.shape)
 
 
-# In[18]:
+# In[ ]:
 
 
 import tensorflow.keras.backend as K
@@ -298,6 +373,106 @@ def f1(y_true, y_pred):
     precision = precision(y_true, y_pred)
     recall = recall(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
+
+
+# In[183]:
+
+
+inputA=Input(shape=(MAX_SEQUENCE_LENGTH,))
+inputB=Input(shape=(len(values1[0]),))
+inputC=Input(shape=(len(tfidf_train[0]),))
+
+
+x = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], weights=[embedding_matrix], input_length=MAX_SEQUENCE_LENGTH, trainable=False)(inputA)
+    # x = Bidirectional(LSTM(64, dropout=0.1, recurrent_dropout=0.2, return_sequences=True))(x)
+    # x = Bidirectional(LSTM(64, dropout=0.6, recurrent_dropout=0.2))(x)
+
+#x = Bidirectional(LSTM(64, return_sequences=True))(x)
+x=Conv1D(64,5,padding='same')(x)
+x=MaxPooling1D(pool_size = (20), strides=(10))(x)
+x=Conv1D(64,5,padding='same')(x)
+x=MaxPooling1D(pool_size = (20), strides=(10))(x)
+x=Flatten()(x)
+#x = Bidirectional(LSTM(64))(x)
+
+x = Model(inputs=inputA, outputs=x)
+
+y = Dense(1024, activation='relu')(inputC)
+y = Dropout(0.1)(y)
+y = Dense(256, activation='relu')(y)
+y = Dropout(0.1)(y)
+y = Dense(64, activation='relu')(y)
+y = Dropout(0.1)(y)
+y = Model(inputs=inputC, outputs=y)
+
+
+y1 = Dense(64, activation='relu')(inputB)
+y1 = Dropout(0.1)(y1)
+y1 = Dense(64, activation='relu')(y1)
+y1 = Dropout(0.1)(y1)
+y1 = Model(inputs=inputB, outputs=y1)
+
+combined=concatenate([x.output, y.output, y1.output])
+z=Dense(64, activation='relu')(combined)
+z = Dropout(0.1)(z)
+z=Dense(64, activation='relu')(z)
+z = Dropout(0.8)(z)
+z=Dense(2, activation='softmax')(z)
+
+model = tensorflow.keras.models.Model(inputs=[inputA, inputB, inputC], outputs=z)
+
+model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy', f1],
+                  )
+
+model.summary()
+
+
+# In[145]:
+
+
+inputA=Input(shape=(MAX_SEQUENCE_LENGTH,))
+inputB=Input(shape=(len(values1[0]),))
+
+x = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], weights=[embedding_matrix], input_length=MAX_SEQUENCE_LENGTH, trainable=False)(inputA)
+    # x = Bidirectional(LSTM(64, dropout=0.1, recurrent_dropout=0.2, return_sequences=True))(x)
+    # x = Bidirectional(LSTM(64, dropout=0.6, recurrent_dropout=0.2))(x)
+
+#x = Bidirectional(LSTM(64, return_sequences=True))(x)
+x=Conv1D(64,5,padding='same')(x)
+x=MaxPooling1D(pool_size = (20), strides=(10))(x)
+x=Conv1D(64,5,padding='same')(x)
+x=MaxPooling1D(pool_size = (20), strides=(10))(x)
+x=Flatten()(x)
+x=Flatten()(x)
+#x = Bidirectional(LSTM(64))(x)
+
+x = Model(inputs=inputA, outputs=x)
+
+y = Dense(1024, activation='relu')(inputB)
+y = Dropout(0.1)(y)
+y = Dense(256, activation='relu')(y)
+y = Dropout(0.1)(y)
+y = Dense(64, activation='relu')(y)
+y = Dropout(0.1)(y)
+y = Model(inputs=inputB, outputs=y)
+
+combined=concatenate([x.output, y.output])
+z=Dense(64, activation='relu')(combined)
+z = Dropout(0.1)(z)
+z=Dense(64, activation='relu')(z)
+z = Dropout(0.8)(z)
+z=Dense(2, activation='softmax')(z)
+
+model = tensorflow.keras.models.Model(inputs=[inputA, inputB], outputs=z)
+
+model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy', f1],
+                  )
+
+model.summary()
 
 
 # In[19]:
@@ -427,21 +602,21 @@ for mean, stdev, param in zip(means, stds, params):
 model = create_model([0.2, 0.5, 0.8], [0.2, 0.8])
 
 
-# In[ ]:
+# In[184]:
 
 
-model.fit([texts_train, np.array(values1)], 
+model.fit([texts_train, np.array(values1), np.array(tfidf_train)], 
           categories_train, epochs=1, 
           verbose=1, 
-          validation_data=([texts_test, np.array(values2)], categories_test)
+          validation_data=([texts_test, np.array(values2), np.array(tfidf_test)], categories_test)
          )
 #           callbacks=callbacks)
 
 
-# In[35]:
+# In[185]:
 
 
-predict = np.argmax(model.predict([np.array(texts_test),np.array(values2)]), axis=1)
+predict = np.argmax(model.predict([np.array(texts_test),np.array(values2), np.array(tfidf_test)]), axis=1)
 answer = np.argmax(categories_test, axis=1)
 print('F1-score: %f' % (f1_score(predict, answer, average="macro")*100))
 
@@ -452,12 +627,12 @@ print('F1-score: %f' % (f1_score(predict, answer, average="macro")*100))
 model
 
 
-# In[178]:
+# In[187]:
 
 
-predict = np.argmax(model.predict([np.array(texts_ev),np.array(values3)]), axis=1)
+predict = np.argmax(model.predict([np.array(texts_ev),np.array(values3),np.array(tfidf_ev)]), axis=1)
 print(predict)
-with open('prediction3.txt', 'w', encoding='utf-8') as file:
+with open('prediction_cnn1.txt', 'w', encoding='utf-8') as file:
     for p in predict:
         print(str(p),file=file)
 
@@ -469,7 +644,7 @@ from tensorflow.keras.models import load_model
 model.save('lstm.h5')
 
 
-# In[101]:
+# In[ ]:
 
 
 from tensorflow.keras.models import load_model
